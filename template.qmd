@@ -1,9 +1,9 @@
 ---
 title: "CEVE 101: Project 03"
-author: "Sierra Ramlakhan (sr167)" # CHANGE THIS
+author: "Sierra Ramlakhan (sr167)" 
 date: "2024-10-23"
 
-# do not change anything below this line
+
 engine: julia
 code-annotations: hover
 format:
@@ -11,102 +11,85 @@ format:
     docx: default
 ---
 
-We begin by loading the required packages.
-
 ```{julia}
-using Revise                      # <1>
-using RainwaterHarvesting         # <2>
+using Revise                      
+using RainwaterHarvesting         
 ```
-
-1. `Revise` allows us to update code without restarting Julia.
-2. We load the `RainwaterHarvesting` package that contains our simulation tools.
 
 ### Setting the file path
 
-Next, we specify the path to the rainfall data file and read it in.
-
 ```{julia}
-filepath = "data/1.txt" # <1>   
+filepath = "data/32.txt" # <1>   
 rainfall_data = RainfallData(filepath) # <2>
 ```
 
-1. This is the path to the rainfall data file for the station of interest.
-2. This creates a `RainfallData` object containing the rainfall data for the specified station.
+- `station_info`
+- `annual_data`
 
-If we dig under the hood a bit, we can see that there are two main pieces of information:
-
-- `station_info`: a dictionary containing information about the station, such as its name and location.
-- `annual_data`: a dictionary mapping years to `AnnualRainfallData` objects, each containing the date and precipitation data for a given year.
-
-### Plotting the Data
-
-We can plot the data for one or all of the years to verify that it looks correct.
+### Line Graph Showing the Daily Rainfall in Cariré, Brazil
 
 ```{julia}
 plot(rainfall_data) # <1>
 ```
 
-1. This `plot` function is defined in [viz.jl](./RainwaterHarvesting/src/viz.jl) and is a thin wrapper around the Plots.jl package.
-
 ### Discussion
+The dataset encompasses all years associated with notable drought occurrences in Cariré, Brazil. This comprehensive coverage is essential for ensuring the reliability and robustness of the analysis, as it allows the model to effectively capture the effects of these extreme events on water availability. By incorporating data from the drought years, the analysis can precisely evaluate system performance during stressful periods, yielding valuable insights into the sufficiency of water storage solutions and the potential risks of future water scarcity.
 
-*Insert discussion here*
+Moreover, the inclusion of drought years significantly bolsters the validity of the reliability assessment and enhances confidence in the findings, given that extreme conditions are often the most difficult and critical to model accurately.
 
-## Understanding the Theoretical Model
+The dataset includes all years corresponding to significant drought events in Cariré, Brazil. This completeness is critical for the reliability and robustness of the analysis, as it ensures that the model captures the impact of these extreme events on water availability. With data from the drought years available, the analysis can accurately assess system performance during periods of stress, providing meaningful insights into the adequacy of water storage solutions and the potential for future water scarcity risks. Furthermore, the inclusion of drought years enhances the validity of the reliability assessment and strengthens confidence in the results, as extreme conditions are often the most challenging and critical to model accurately.
 
-Let's explore the model that simulates the rainwater harvesting system.
+HHistorical data reveal that Cariré, situated in Ceará, Brazil, has faced significant droughts, particularly in 1993, 1998, and 2012. These droughts are part of a larger trend impacting Northeast Brazil, frequently associated with El Niño events, which result in below-average rainfall and severe water shortages.
 
-### Mass Balance Equation
+Incorporating data from these drought years into the analysis is vital for accurately evaluating water resource management and system resilience under extreme conditions. Conversely, the absence of data from these periods could impede the evaluation process.
 
-The mass balance model for the rainwater tank is given by:
 
+## Limiting Assumptions 
+
+1. **Constant Runoff Coefficient (η):**
+   Assumes a fixed value, ignoring variations due to rainfall intensity and/or roof conditions.
+
+2. **Uniform Consumption (Ct):**
+   Models consumption as zero during the rainy season and constant during the dry season, ignoring daily or seasonal variability.
+
+3. **No Losses Considered:**
+   Neglects evaporation and leakage, overestimating water availability.
+
+4. **Sole Reliance on Precipitation:**
+   Assumes rainfall as the only input, limiting applicability to integrated systems.
+
+
+## Proposed Model Modifications based on Assumptions
+1. **Variable Runoff Coefficient:**
+   Use a dynamic coefficient based on rainfall intensity:
 $$
-V_{t+1} = V_t + Q_t - C_t | 0 \leq V_t \leq V_\text{max}
-$$
-
-- $V_t$: the volume of water in the tank at time $t$
-- $Q_t$ is the volume of water added to the tank at time $t$
-- $C_t$ is the volume of water consumed at time $t$
-- $V_\text{max}$: the maximum volume of the tank
-
-### Inflow ($Q_t$)
-
-Inflow is calculated as
-
-$$
-Q_t = \eta \times A \times \max(P_t - F, 0).
-$$
-
-- $\eta$: the runoff coefficient, which accounts for losses due to evaporation, spilling, etc.
-- $A$: the area of the roof (we will use square meters)
-- $P_t$: the precipitation at time $t$ (we will use millimeters per day)
-- $F$: the first flush volume (we will use millimeters). The first flush volume is often discarded, so that each time it rains the first bit of water (which is usually dirty) is not used (see [here](https://rainwaterharvesting.tamu.edu/pre-storage-treatment/) for more details).
-
-### Consumption
-
-Consumption is modeled as:
-
-$$
-C_t = \begin{cases}
-    74.1 & \quad \text{day of year} > 150 \\
-    0 & \quad \text{day of year} \leq 150
-\end{cases}
+       η(P_t) = η_0 + α * P_t
 $$
 
-This makes two major assumptiuons.
-First, the household begins using water from the tank after the 150th day of the year.
-This is based on the idea that the rainy season lasts for about the first 150 days of the year, and so they may have other sources of water before then.
-The second assumption is that each household consumes 74.1 liters per day during the dry season.
-How does this compare to your household's water usage?
+2. **Dynamic Consumption Rates:**
+   Account for seasonal and household variations:
+$$
+       C_t = C_0 * f(t)
+$$
+
+3. **Incorporating Losses:**
+   Add evaporation (E_t) and leakage (L_t) to the mass balance equation:
+   $$
+       V_t+1 = V_t + Q_t - C_t - E_t - L_t
+$$
+4. **Rainfall Variability:**
+   Model P_t using probabilistic distributions to capture extreme events.
+$$
+       P_t ~ Normal(μ, σ^2)
+$$
+
+These adjustments can improve the model's accuracy and applicability for real-world scenarios.
 
 ## Model Implementation and Testing
 
-### Defining the Model Parameters
-
-We can define the model parameters with sensible default values.
-You will have the opportunity to change these values later.
-
+### Running Simulation for One Year
 ```{julia}
+#| echo: false
 #| output: false
 param = ModelParameters(          # <1>
     runoff_coefficient=0.85,      # <2>
@@ -116,49 +99,131 @@ param = ModelParameters(          # <1>
 )
 ```
 
-1. This creates a `ModelParameters` object with the specified parameters.
-2. The runoff coefficient ($\eta$) is a measure of how much of the rain that falls on the roof ends up in the tank.
-3. The roof area ($A$) is the area of the roof that the rain falls on.
-4. The first flush volume ($V_f$) is the volume of rain that is discarded because it is dirty.
-5. The tank capacity ($V_\text{max}$) is the maximum volume of the tank.
 
-### Running the Simulation for One Year
-
-Let's run the model for the year 1981.
+Using the year 1981: 
 
 ```{julia}
+#| echo: false
 rainfall_1981 = rainfall_data.annual_data[1981]    # <1>
 results_1981 = run_timesteps(rainfall_1981, param) # <2>
 p1 = plot(results_1981)                                 # <3>
 ```
 
-1. We select the annual rainfall data for the year 1981.
-2. We run the simulation for the year 1981.
-3. We plot the results, again using a `plot` function defined in [viz.jl](./RainwaterHarvesting/src/viz.jl).
-
-To compare rainfall and tank volume:
+Comparing rainfall and tank volume:
 
 ```{julia}
+#| echo: false
 p2 = plot(rainfall_1981)
 plot(p2, p1, layout=(2, 1), size=(1000, 700), link=:x)
 ```
+The graph demonstrates how the tank volume increases in response to rainfall events, with rapid rises expected to correspond to heavy rainfall. The tank reaches full capacity around periods of intense precipitation, reflecting efficient water collection. Notably, there are no periods where the tank runs dry, indicating sufficient rainfall and tank capacity to meet storage needs. However, overflow could therefore occur if rainfall exceeds the tank's maximum capacity, suggesting the need for adjustments during these extreme weather cases.
 
-Observe how the tank's water level responds to rainfall events.
-Note any periods when the tank runs dry or overflows.
 
 ### Reliability Analysis
 
-We can run simulations for all years, one at a time, and then check how many times the tank runs dry.
-You can run simulations for all years at once with the following code:
+# Modifying Model Parameters
+To improve the system's performance during dry seasons, the roof area and tank capacity is adjusted. 
+These changes directly affect the collection and storage of water, enhancing the system's reliability.
 
 ```{julia}
-all_years = sort(collect(keys(rainfall_data.annual_data)))          # <1>
-all_results = [run_timesteps(rainfall_data.annual_data[year], param) for year in all_years]   # <2>
-any_failures = [!isempty(result.failure_dates) for result in all_results]  # <3>
-println("Number of years with failures: ", sum(any_failures), " out of ", length(all_years))  # <4>
+#| echo: false
+# Defining updated parameters
+param_updated = ModelParameters(
+    runoff_coefficient=0.85,  
+    #Retaining the original value
+    roof_area_m2=70.0,        #Increased to improve water collection
+    first_flush_mm=2.0,       
+    #Retain the original value
+    tank_capacity_L=25000.0   # Increased from 16,000 L to hold more water
+)
 ```
 
-1. We get all the years in order.
-2. We run the simulation for each year.
-3. We check if any failures occurred.
-4. We print the number of years with failures and the total number of years.
+# Simulating for the year 1981 with updated parameters
+```{julia}
+#| echo: false
+rainfall_1981 = rainfall_data.annual_data[1981]  # Select annual rainfall data for 1981
+results_1981 = run_timesteps(rainfall_1981, param_updated)  
+
+plot_1981 = plot(results_1981)  
+
+
+rainfall_plot = plot(rainfall_1981)
+plot(rainfall_plot, plot_1981, layout=(2, 1), size=(1000, 700), link=:x)
+
+#| fig-cap: "Tank Volume Response and Rainfall Comparison for 1981"
+rainfall_1981 = rainfall_data.annual_data[1981]  # Select annual rainfall data for 1981
+results_1981 = run_timesteps(rainfall_1981, param_updated)  # Run the simulation
+plot_combined = plot(plot(rainfall_1981), plot(results_1981), layout=(2, 1), size=(1000, 700), link=:x)
+plot_combined
+
+```
+To enhance the system's performance during dry seasons, the following updated parameters were defined and some kept:
+
+Runoff Coefficient (0.85):
+Retained the original value, representing the proportion of rainfall that contributes to water collection.
+
+Roof Area (70.0 m²):
+Increased from the original 45.0 m² to improve water collection by capturing more rainfall.
+
+First Flush (2.0 mm):
+Retained the original value, accounting for the initial rainfall volume discarded due to impurities.
+
+Tank Capacity (25,000 L):
+Increased from 16,000 L to store more water, ensuring sufficient supply during extended dry periods.
+
+# Justification of Parameter Adjustments
+1. **Roof Area:**
+   Increased to 70 m² to improve water collection capacity, ensuring more rainwater is captured during rainfall events.
+
+2. **Tank Capacity:**
+   Increased to 25,000 L to store additional water for longer dry periods, reducing the likelihood of shortages.
+
+# Performing Reliability Analysis for All Years
+
+Why? - Reliability analysis helps to evaluate whether the adjusted system parameters are adequate to meet the water demand across all available years.
+
+# Running the Simulation for All Years
+```{julia}
+#| echo: false
+# Running the simulation for all years
+all_years = sort(collect(keys(rainfall_data.annual_data)))  # Get all years
+all_results = [run_timesteps(rainfall_data.annual_data[year], param_updated) for year in all_years]  # Run simulation for each year
+any_failures = [!isempty(result.failure_dates) for result in all_results]  # Check if failures occurred
+
+#| echo: true
+println("Number of years with failures: ", sum(any_failures), " out of ", length(all_years))  # Print results
+```
+
+# Discussion and Interpretation of Findings
+
+The reliability analysis reveals that the system performed well, meeting demand for most years with the updated parameters. 
+Out of 50 years, 3 years experienced failures, resulting in a reliability of 6%.
+
+This indicates that increasing the roof area and tank capacity significantly reduces the risk of water shortages.
+However, the system is still vulnerable to extended dry periods or severe droughts, highlighting the need for further improvements, 
+such as incorporating dynamic runoff coefficients or accounting for water losses due to evaporation and leakage.
+
+## Identifying Gaps in the Methods
+
+## Limitation:
+The model assumes a constant runoff coefficient and neglects losses such as evaporation and leakage, which may overestimate available water.
+
+## Proposed Solution:
+Incorporate evaporation and leakage as additional loss terms in the mass balance equation:
+$$
+    V_t+1 = V_t + Q_t - C_t - E_t - L_t
+$$ 
+where:
+
+- $E_t$ accounts for evaporation (based on temperature and tank area).
+
+- $L_t$ models leakage as a percentage of tank volume.
+ 
+This enhancement would improve the model's accuracy in predicting water availability under realistic conditions.
+
+References: 
+Doss-Gollin, J., de Souza Filho, F. de A., & da Silva, F. O. E. (2015). Analytic modeling of rainwater harvesting in the Brazilian Semiarid Northeast. Journal of the American Water Resources Association, 52(1), 129–137. https://doi.org/10.1111/1752-1688.12376
+
+Marengo, J. A., & Bernasconi, M. (2015). Regional differences in aridity/drought conditions over Northeast Brazil: Present state and future projections. Climatic Change, 129(1-2), 103–115. https://doi.org/10.1007/s10584-014-1310-1
+
+Hastenrath, S. (2012). Exploring the climate problems of Brazil's Nordeste: A review. Climatic Change, 112(2), 243–251. https://doi.org/10.1007/s10584-011-0227-1
